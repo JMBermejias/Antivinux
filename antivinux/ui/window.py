@@ -129,7 +129,11 @@ class AntivinuxWindow(Gtk.Window):
 
     def _install_css(self):
         provider = Gtk.CssProvider()
-        provider.load_from_data(CSS.encode("utf-8"))
+        try:
+            provider.load_from_data(CSS.encode("utf-8"))
+        except TypeError:
+            # PyGObject antiguo espera texto en lugar de bytes.
+            provider.load_from_data(CSS)
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(),
             provider,
@@ -210,7 +214,11 @@ class AntivinuxWindow(Gtk.Window):
         self.sidebar_buttons = {}
         group_leader = None
         for stack_name, label in items:
-            button = Gtk.ToggleButton(label=label)
+            button = Gtk.RadioButton()
+            button.set_label(label)
+            # set_mode(False) hace que el RadioButton se dibuje como un
+            # boton normal (sin el circulo indicador).
+            button.set_mode(False)
             button.get_style_context().add_class("ant-navigation")
             button.set_relief(Gtk.ReliefStyle.NONE)
             button.set_can_focus(False)
@@ -244,9 +252,8 @@ class AntivinuxWindow(Gtk.Window):
 
     def _on_nav_toggled(self, button, stack_name):
         if not button.get_active():
-            # Los botones funcionan como un grupo exclusivo: nunca se desactiva
-            # el boton de la seccion visible.
-            button.set_active(True)
+            # Al ser RadioButton, el boton anterior se desactiva solo; aqui
+            # solo reaccionamos al boton que pasa a activo.
             return
         self.stack.set_visible_child_name(stack_name)
         page = self.stack.get_visible_child()

@@ -56,6 +56,14 @@ jobs:
       - name: Ejecutar pruebas del nucleo
         run: python3 -m unittest discover -s tests -v
 
+      - name: Instalar GTK para la prueba de interfaz
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq python3-gi gir1.2-gtk-3.0 xvfb
+
+      - name: Probar el arranque de la interfaz grafica
+        run: xvfb-run -a /usr/bin/python3 tests/test_ui_smoke.py
+
       - name: Construir el paquete .deb
         run: |
           chmod +x packaging/build_deb.sh packaging/install_deps.sh \
