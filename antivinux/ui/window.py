@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """Ventana principal con barra de navegacion lateral."""
 
+import sys
+
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -37,7 +39,6 @@ window {
     font-weight: 600;
     padding: 12px 16px;
     margin: 2px 8px;
-    text-align: left;
     box-shadow: none;
 }
 
@@ -130,10 +131,15 @@ class AntivinuxWindow(Gtk.Window):
     def _install_css(self):
         provider = Gtk.CssProvider()
         try:
-            provider.load_from_data(CSS.encode("utf-8"))
-        except TypeError:
-            # PyGObject antiguo espera texto en lugar de bytes.
-            provider.load_from_data(CSS)
+            try:
+                provider.load_from_data(CSS.encode("utf-8"))
+            except TypeError:
+                # PyGObject antiguo espera texto en lugar de bytes.
+                provider.load_from_data(CSS)
+        except Exception as exc:
+            # Un error de estilos no debe impedir abrir la aplicacion.
+            sys.stderr.write("Antivinux: aviso de estilos: {0}\n".format(exc))
+            return
         Gtk.StyleContext.add_provider_for_screen(
             Gdk.Screen.get_default(),
             provider,

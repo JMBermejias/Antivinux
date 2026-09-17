@@ -19,7 +19,7 @@ try:
     gi.require_version("Gtk", "3.0")
     from gi.repository import Gtk  # noqa: E402
 
-    from antivinux.ui.window import AntivinuxWindow  # noqa: E402
+    from antivinux.ui.window import AntivinuxWindow, CSS  # noqa: E402
 
     HAVE_GTK = True
 except Exception:  # pragma: no cover - depende del entorno
@@ -28,6 +28,10 @@ except Exception:  # pragma: no cover - depende del entorno
 
 @unittest.skipUnless(HAVE_GTK, "GTK 3 no esta disponible")
 class WindowSmokeTests(unittest.TestCase):
+    def test_css_is_valid(self):
+        provider = Gtk.CssProvider()
+        provider.load_from_data(CSS.encode("utf-8"))
+
     def test_window_builds(self):
         win = AntivinuxWindow()
         win.show_all()
