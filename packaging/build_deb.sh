@@ -142,10 +142,12 @@ install -m 0755 "${PACKAGING_DIR}/postrm" "${ROOT}/DEBIAN/postrm"
 # ---------------------------------------------------------------------------
 OUTPUT="${DIST_DIR}/${PKG_NAME}_${VERSION}_all.deb"
 if [ "${HAVE_DPKG_DEB}" -eq 1 ]; then
+    # -Zgzip garantiza compatibilidad con versiones antiguas de dpkg
+    # (Zorin 16/17, Debian 11, Ubuntu 20.04), que no soportan zstd.
     if dpkg-deb --help 2>&1 | grep -q -- '--root-owner-group'; then
-        dpkg-deb --root-owner-group --build "${ROOT}" "${OUTPUT}"
+        dpkg-deb -Zgzip --root-owner-group --build "${ROOT}" "${OUTPUT}"
     else
-        dpkg-deb --build "${ROOT}" "${OUTPUT}"
+        dpkg-deb -Zgzip --build "${ROOT}" "${OUTPUT}"
     fi
 else
     python3 "${PACKAGING_DIR}/deb_builder.py" "${ROOT}" "${OUTPUT}"
