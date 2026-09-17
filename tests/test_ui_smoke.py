@@ -42,8 +42,9 @@ class WindowSmokeTests(unittest.TestCase):
     def test_navigation_changes_page(self):
         win = AntivinuxWindow()
         win.show_all()
-        win.navigate_to("settings")
-        self.assertEqual(win.stack.get_visible_child_name(), "settings")
+        for name in win.pages:
+            win.navigate_to(name)
+            self.assertEqual(win.stack.get_visible_child_name(), name)
         win.destroy()
 
 

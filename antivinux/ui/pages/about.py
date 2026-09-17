@@ -90,7 +90,7 @@ class AboutPage(Gtk.Box):
         license_text.set_margin_start(16)
         license_text.set_margin_end(16)
         license_text.set_justify(Gtk.Justification.CENTER)
-        license_text.set_wrap(True)
+        license_text.set_line_wrap(True)
         license_text.set_max_width_chars(70)
         card.pack_start(license_text, False, False, 0)
 

@@ -61,7 +61,7 @@ class UpdatePage(Gtk.Box):
         value_label.set_halign(Gtk.Align.START)
         value_label.set_margin_start(16)
         value_label.set_margin_top(12)
-        value_label.set_wrap(True)
+        value_label.set_line_wrap(True)
         value_label.set_max_width_chars(38)
         card.pack_start(value_label, False, False, 0)
 

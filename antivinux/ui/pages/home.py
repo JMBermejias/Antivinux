@@ -65,7 +65,7 @@ class HomePage(Gtk.Box):
         self.status_detail = Gtk.Label(label="")
         self.status_detail.get_style_context().add_class("metric-label")
         self.status_detail.set_halign(Gtk.Align.START)
-        self.status_detail.set_wrap(True)
+        self.status_detail.set_line_wrap(True)
         vbox.pack_start(self.status_detail, True, True, 0)
 
         card.pack_start(vbox, True, True, 0)
@@ -153,7 +153,7 @@ class HomePage(Gtk.Box):
         self.last_scan_label.set_halign(Gtk.Align.START)
         self.last_scan_label.set_margin_start(14)
         self.last_scan_label.set_margin_bottom(12)
-        self.last_scan_label.set_wrap(True)
+        self.last_scan_label.set_line_wrap(True)
         card.pack_start(self.last_scan_label, False, False, 0)
         self.pack_start(card, False, False, 0)
 
