@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include antivinux-launcher.py
+recursive-include data *
+recursive-include debian *
+recursive-include packaging *
+global-exclude __pycache__
+global-exclude *.py[cod]
+global-exclude *.deb

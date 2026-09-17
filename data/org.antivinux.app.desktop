@@ -1,0 +1,23 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Antivinux
+GenericName=Antivirus
+Comment=Antivirus grafico basado en ClamAV para Zorin OS y Debian
+Comment[en]=Graphical antivirus based on ClamAV for Zorin OS and Debian
+Exec=antivinux
+Icon=antivinux
+Terminal=false
+Categories=System;Security;Utility;GTK;
+StartupNotify=true
+Keywords=antivirus;clamav;seguridad;security;malware;virus;scan;
+Keywords[en]=antivirus;clamav;security;malware;virus;scan;
+Actions=ScanHome;UpdateDB;
+
+[Desktop Action ScanHome]
+Name=Analizar carpeta personal
+Exec=antivinux --scan-home
+
+[Desktop Action UpdateDB]
+Name=Actualizar base de datos
+Exec=pkexec /usr/bin/freshclam

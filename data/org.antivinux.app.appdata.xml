@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>org.antivinux.app</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>Antivinux</name>
+  <summary>Antivirus grafico basado en ClamAV</summary>
+  <summary xml:lang="en">Graphical antivirus based on ClamAV</summary>
+  <description>
+    <p>
+      Antivinux es una interfaz grafica sencilla e intuitiva para el motor
+      antivirus ClamAV en Zorin OS y otras distribuciones basadas en Debian.
+    </p>
+    <p>Caracteristicas principales:</p>
+    <ul>
+      <li>Analisis recursivo de archivos, carpetas y unidades completas.</li>
+      <li>Cuarentena para aislar, restaurar o eliminar archivos infectados.</li>
+      <li>Base de datos de virus de ClamAV (main.cvd, daily.cvd y bytecode.cvd).</li>
+      <li>Actualizaciones automaticas mediante freshclam.</li>
+      <li>Notificaciones de escritorio e informes de analisis exportables.</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">org.antivinux.app.desktop</launchable>
+  <url type="homepage">https://github.com/jmbermejias/Antivinux</url>
+  <url type="bugtracker">https://github.com/jmbermejias/Antivinux/issues</url>
+  <developer_name>jmbermejias</developer_name>
+  <categories>
+    <category>System</category>
+    <category>Security</category>
+    <category>Utility</category>
+  </categories>
+  <keywords>
+    <keyword>antivirus</keyword>
+    <keyword>clamav</keyword>
+    <keyword>seguridad</keyword>
+    <keyword>malware</keyword>
+    <keyword>virus</keyword>
+  </keywords>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-09-17">
+      <description>
+        <p>Version inicial de Antivinux.</p>
+      </description>
+    </release>
+  </releases>
+</component>

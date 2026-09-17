@@ -1,0 +1,16 @@
+#!/bin/sh
+# prerm: se ejecuta antes de eliminar el paquete.
+set -e
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        # Eliminar los archivos .pyc generados por Python para no dejar restos.
+        if [ -d /usr/lib/antivinux ]; then
+            find /usr/lib/antivinux -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
+        fi
+    ;;
+    failed-upgrade)
+    ;;
+esac
+
+exit 0

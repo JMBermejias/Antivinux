@@ -1,0 +1,20 @@
+#!/bin/sh
+# postrm: se ejecuta tras eliminar el paquete.
+set -e
+
+case "$1" in
+    purge)
+        # Eliminar la configuracion de la aplicacion (no las bases de datos,
+        # que pertenecen al paquete clamav-freshclam).
+        rm -rf /etc/antivinux 2>/dev/null || true
+        if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database -q /usr/share/applications || true
+        fi
+    ;;
+    remove)
+    ;;
+    upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+    ;;
+esac
+
+exit 0

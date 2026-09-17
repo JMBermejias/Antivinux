@@ -1,0 +1,27 @@
+# Bytecode de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Empaquetado
+build/
+dist/
+*.deb
+*.egg-info/
+.eggs/
+packaging/build/
+
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Editores
+.vscode/
+.idea/
+*.swp
+*~
+
+# Sistema
+.DS_Store
+*.log

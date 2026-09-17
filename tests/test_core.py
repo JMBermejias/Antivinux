@@ -1,0 +1,99 @@
+# -*- coding: utf-8 -*-
+"""Pruebas basicas del nucleo de Antivinux (no requieren GTK)."""
+
+import os
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from antivinux.backend import (  # noqa: E402
+    parse_cvd_header,
+    database_files,
+    count_signatures,
+)
+from antivinux.backend.quarantine import QuarantineManager  # noqa: E402
+from antivinux.backend.clamav import Scanner  # noqa: E402
+
+
+HEADER = (
+    "ClamAV-VDB:17 Sep 2026 06-24 +0000:28126:355666:90:"
+    "d11370bc331eaffe:extra:1\n"
+)
+
+
+class CvdHeaderTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="antivinux-test-")
+
+    def _write(self, name, header):
+        path = os.path.join(self.tmp, name)
+        with open(path, "wb") as fh:
+            fh.write(header.encode("latin-1"))
+            fh.write(b"\x00" * 1024)
+        return path
+
+    def test_parse_header(self):
+        path = self._write("daily.cvd", HEADER)
+        info = parse_cvd_header(path)
+        self.assertEqual(info["version"], "28126")
+        self.assertEqual(info["signatures"], 355666)
+        self.assertEqual(info["functional_level"], 90)
+        self.assertIn("17 Sep 2026", info["date"])
+
+    def test_invalid_header(self):
+        path = os.path.join(self.tmp, "bad.cvd")
+        with open(path, "wb") as fh:
+            fh.write(b"NOT-A-CVD-HEADER\n")
+        self.assertIsNone(parse_cvd_header(path))
+
+    def test_database_files_and_count(self):
+        self._write("main.cvd", HEADER.replace("28126", "62"))
+        self._write("bytecode.cvd", HEADER.replace("28126", "340"))
+        files = database_files(self.tmp)
+        self.assertIn("main.cvd", files)
+        self.assertIn("bytecode.cvd", files)
+        entries = {}
+        for name in files:
+            info = parse_cvd_header(os.path.join(self.tmp, name))
+            entries[name] = {"signatures": info["signatures"], "size": 1024}
+        self.assertEqual(count_signatures(entries), 355666 * 2)
+
+
+class QuarantineTests(unittest.TestCase):
+    def test_quarantine_restore_delete(self):
+        tmp = tempfile.mkdtemp(prefix="antivinux-q-")
+        manager = QuarantineManager(os.path.join(tmp, "q"))
+        source = os.path.join(tmp, "virus.bin")
+        with open(source, "w") as fh:
+            fh.write("contenido malicioso")
+
+        entry = manager.quarantine(source, "Eicar-Test-Signature")
+        self.assertIsNotNone(entry)
+        self.assertEqual(len(manager.list()), 1)
+
+        self.assertTrue(manager.restore(entry["id"]))
+        self.assertEqual(len(manager.list()), 0)
+
+        entry = manager.quarantine(source, "Otra.Firma")
+        self.assertTrue(manager.delete(entry["id"]))
+        self.assertEqual(len(manager.list()), 0)
+
+
+class ScannerParsingTests(unittest.TestCase):
+    def test_extract_findings(self):
+        lines = [
+            "/home/user/eicar.com: Eicar-Test-Signature FOUND\n",
+            "/home/user/clean.txt: OK\n",
+            "/home/user/trojan: Unix.Trojan.Agent-123 FOUND\n",
+        ]
+        findings = Scanner._extract_findings(lines)
+        self.assertEqual(len(findings), 2)
+        self.assertEqual(findings[0]["file"], "/home/user/eicar.com")
+        self.assertEqual(findings[0]["signature"], "Eicar-Test-Signature")
+        self.assertEqual(findings[1]["signature"], "Unix.Trojan.Agent-123")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

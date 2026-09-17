@@ -1,0 +1,67 @@
+#!/bin/sh
+# postinst: se ejecuta tras instalar o actualizar el paquete.
+set -e
+
+APP_NAME="Antivinux"
+DB_DIR="/var/lib/clamav"
+
+case "$1" in
+    configure)
+        # Actualizar las caches del escritorio y de iconos para que el
+        # lanzador apareza en el menu de aplicaciones de Zorin.
+        if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database -q /usr/share/applications || true
+        fi
+        if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+            gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor || true
+        fi
+
+        # Garantizar la existencia del directorio de la base de datos de ClamAV
+        # donde freshclam almacena main.cvd, daily.cvd y bytecode.cvd.
+        mkdir -p "$DB_DIR"
+        if getent group clamav >/dev/null 2>&1; then
+            chown clamav:clamav "$DB_DIR" 2>/dev/null || true
+        fi
+        chmod 775 "$DB_DIR" 2>/dev/null || true
+
+        # Asegurar que freshclam.conf permite las definiciones oficiales
+        # (main.cvd, daily.cvd, bytecode.cvd) si la instalacion las comento.
+        if [ -f /etc/clamav/freshclam.conf ]; then
+            for entry in main.cvd daily.cvd bytecode.cvd; do
+                if grep -qiE "^[[:space:]]*#$entry" /etc/clamav/freshclam.conf 2>/dev/null; then
+                    sed -i "s/^[[:space:]]*#\($entry\)[[:space:]]*$/\1/" /etc/clamav/freshclam.conf || true
+                fi
+            done
+        fi
+
+        # Habilitar el servicio de actualizaciones automaticas de freshclam.
+        if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+            systemctl enable clamav-freshclam.service >/dev/null 2>&1 || true
+            systemctl start clamav-freshclam.service >/dev/null 2>&1 || true
+        fi
+
+        cat <<EOF
+========================================================================
+ $APP_NAME se ha instalado correctamente.
+========================================================================
+ Motor de deteccion : ClamAV (clamscan)
+ Base de datos      : $DB_DIR/main.cvd, daily.cvd, bytecode.cvd
+ Actualizaciones    : freshclam (servicio clamav-freshclam)
+
+ Puedes iniciar la aplicacion desde el menu de Zorin ("$APP_NAME")
+ o ejecutando el comando: antivinux
+
+ Para descargar las definiciones de virus manualmente ejecuta:
+     sudo freshclam
+========================================================================
+EOF
+    ;;
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+    *)
+        echo "postinst llamado con argumento desconocido: $1" >&2
+        exit 1
+    ;;
+esac
+
+exit 0
