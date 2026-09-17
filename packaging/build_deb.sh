@@ -128,6 +128,10 @@ INSTALLED_SIZE="$(du -sk "${ROOT}/usr" | cut -f1)"
 sed -e "s/@VERSION@/${VERSION}/g" \
     -e "s/@SIZE@/${INSTALLED_SIZE}/g" \
     "${PACKAGING_DIR}/control.in" > "${ROOT}/DEBIAN/control"
+# dpkg-deb exige un salto de linea final en el campo Description.
+if [ -n "$(tail -c 1 "${ROOT}/DEBIAN/control")" ]; then
+    printf '\n' >> "${ROOT}/DEBIAN/control"
+fi
 
 install -m 0755 "${PACKAGING_DIR}/postinst" "${ROOT}/DEBIAN/postinst"
 install -m 0755 "${PACKAGING_DIR}/prerm" "${ROOT}/DEBIAN/prerm"
