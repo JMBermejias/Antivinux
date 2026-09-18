@@ -22,7 +22,10 @@ data_files = [
     ("share/polkit-1/actions", ["data/org.antivinux.policy"]),
     (
         "share/antivinux",
-        ["data/antivinux-update-db.sh"],
+        [
+            "data/antivinux-update-db.sh",
+            "data/antivinux-self-update.sh",
+        ],
     ),
 ]
 
@@ -33,6 +36,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author=about["__author__"],
+    author_email=about.get("__author_email__"),
     url=about["__homepage__"],
     license=about["__license__"],
     packages=find_packages(exclude=["tests", "debian"]),

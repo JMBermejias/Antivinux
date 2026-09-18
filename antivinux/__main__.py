@@ -55,6 +55,9 @@ def main(argv=None):
     elif options["update"]:
         win.navigate_to("update")
 
+    if win.config.get_bool("check_app_updates"):
+        win.check_app_updates()
+
     Gtk.main()
     return 0
 

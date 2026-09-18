@@ -15,6 +15,7 @@ from antivinux.backend import (  # noqa: E402
 )
 from antivinux.backend.quarantine import QuarantineManager  # noqa: E402
 from antivinux.backend.clamav import Scanner  # noqa: E402
+from antivinux.backend import appupdate  # noqa: E402
 
 
 HEADER = (
@@ -93,6 +94,30 @@ class ScannerParsingTests(unittest.TestCase):
         self.assertEqual(findings[0]["file"], "/home/user/eicar.com")
         self.assertEqual(findings[0]["signature"], "Eicar-Test-Signature")
         self.assertEqual(findings[1]["signature"], "Unix.Trojan.Agent-123")
+
+
+class AppUpdateTests(unittest.TestCase):
+    def test_parse_version(self):
+        self.assertEqual(appupdate.parse_version("1.0.10"), (1, 0, 10))
+        self.assertEqual(appupdate.parse_version("v1.0.10"), (1, 0, 10))
+        self.assertEqual(appupdate.parse_version("1.0.2"), (1, 0, 2))
+
+    def test_is_newer(self):
+        self.assertTrue(appupdate.is_newer("1.0.10", "1.0.9"))
+        self.assertTrue(appupdate.is_newer("v1.1.0", "1.0.99"))
+        self.assertFalse(appupdate.is_newer("1.0.6", "1.0.6"))
+        self.assertFalse(appupdate.is_newer("1.0.5", "1.0.6"))
+
+    def test_check_for_update_never_raises(self):
+        info = appupdate.check_for_update(
+            current_version="9999.0.0", timeout=0.001
+        )
+        self.assertIn("available", info)
+        self.assertFalse(info["available"])
+
+    def test_install_package_missing_file(self):
+        ok, _ = appupdate.install_package("/ruta/que/no/existe.deb")
+        self.assertFalse(ok)
 
 
 if __name__ == "__main__":

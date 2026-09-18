@@ -2,16 +2,17 @@
 """Ventana principal con barra de navegacion lateral."""
 
 import sys
+import threading
 
 import gi
 
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gdk, Gtk  # noqa: E402
+from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from .. import __version__  # noqa: E402
 from ..config import Config  # noqa: E402
-from ..backend import check_database_status, is_clamav_installed  # noqa: E402
+from ..backend import appupdate, check_database_status, is_clamav_installed  # noqa: E402
 from ..backend.quarantine import QuarantineManager  # noqa: E402
 from .pages.home import HomePage  # noqa: E402
 from .pages.scan import ScanPage  # noqa: E402
@@ -118,6 +119,7 @@ class AntivinuxWindow(Gtk.Window):
         self.set_default_size(1100, 700)
         self.config = Config()
         self.quarantine = QuarantineManager(self.config["quarantine_dir"])
+        self._pending_update = None
 
         self._install_css()
         self._build_header()
@@ -154,8 +156,14 @@ class AntivinuxWindow(Gtk.Window):
         self.set_titlebar(header)
 
     def _build_body(self):
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.add(outer)
+
+        self.update_bar = self._build_update_bar()
+        outer.pack_start(self.update_bar, False, False, 0)
+
         main_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        self.add(main_box)
+        outer.pack_start(main_box, True, True, 0)
 
         self.sidebar_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.sidebar_box.set_size_request(210, -1)
@@ -179,6 +187,21 @@ class AntivinuxWindow(Gtk.Window):
         self.pages["about"] = AboutPage()
         for name, page in self.pages.items():
             self.stack.add_named(page, name)
+
+    def _build_update_bar(self):
+        bar = Gtk.InfoBar()
+        bar.set_message_type(Gtk.MessageType.INFO)
+        bar.set_no_show_all(True)
+        label = Gtk.Label()
+        label.set_line_wrap(True)
+        label.set_halign(Gtk.Align.START)
+        self._update_bar_label = label
+        bar.get_content_area().add(label)
+        bar.add_button("Actualizar ahora", Gtk.ResponseType.ACCEPT)
+        bar.add_button("Mas tarde", Gtk.ResponseType.CLOSE)
+        bar.connect("response", self._on_update_bar_response)
+        bar.hide()
+        return bar
 
     def _build_sidebar(self):
         brand = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -282,3 +305,30 @@ class AntivinuxWindow(Gtk.Window):
         from ..notifier import notify
 
         notify(title, message)
+
+    def check_app_updates(self):
+        """Comprueba en segundo plano si hay una version nueva de Antivinux."""
+        def worker():
+            info = appupdate.check_for_update(__version__)
+            Gdk.threads_add_idle(GLib.PRIORITY_DEFAULT, self._show_update_info, info)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _show_update_info(self, info):
+        if not info or not info.get("available"):
+            return
+        self._pending_update = info
+        self._update_bar_label.set_text(
+            "Nueva version {0} de Antivinux disponible (tienes {1}).".format(
+                info["latest"], info["current"]
+            )
+        )
+        self.update_bar.show()
+
+    def _on_update_bar_response(self, bar, response):
+        if response == Gtk.ResponseType.ACCEPT and self._pending_update:
+            self.navigate_to("settings")
+            page = self.pages.get("settings")
+            if page is not None and hasattr(page, "start_update"):
+                page.start_update(self._pending_update)
+        bar.hide()

@@ -7,7 +7,7 @@ Essential: no
 Installed-Size: @SIZE@
 Depends: python3 (>= 3.6), python3-gi, gir1.2-gtk-3.0, gir1.2-notify-0.7, clamav, clamav-base, clamav-freshclam, pkexec | policykit-1
 Recommends: clamav-daemon, clamdscan
-Maintainer: jmbermejias <jmbermejias@users.noreply.github.com>
+Maintainer: Jose Manuel Bernabeu Mejias <jmbermejias@users.noreply.github.com>
 Homepage: https://github.com/jmbermejias/Antivinux
 Description: Antivirus grafico para Zorin OS y sistemas basados en Debian
  Antivinux es una interfaz grafica sencilla e intuitiva para el motor

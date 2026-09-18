@@ -20,6 +20,7 @@ DEFAULTS = {
     "last_scan_path": os.path.expanduser("~"),
     "scan_archive": "true",
     "update_on_start": "false",
+    "check_app_updates": "true",
     "show_notifications": "true",
 }
 

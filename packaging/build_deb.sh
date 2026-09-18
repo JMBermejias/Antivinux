@@ -84,6 +84,10 @@ chmod 0755 "${ROOT}/usr/bin/${PKG_NAME}"
 install -m 0755 "${PROJECT_DIR}/data/antivinux-update-db.sh" \
     "${ROOT}/usr/bin/antivinux-update-db"
 
+# Asistente privilegiado de autoactualizacion
+install -m 0755 "${PROJECT_DIR}/data/antivinux-self-update.sh" \
+    "${ROOT}/usr/bin/antivinux-self-update"
+
 # ---------------------------------------------------------------------------
 # Datos de escritorio, iconos y politicas
 # ---------------------------------------------------------------------------
@@ -108,7 +112,9 @@ gzip -9n -c "${PROJECT_DIR}/debian/changelog" > \
 chmod 0644 "${ROOT}/usr/share/doc/${PKG_NAME}/changelog.Debian.gz"
 
 cat > "${ROOT}/usr/share/doc/${PKG_NAME}/copyright" <<EOF
-Copyright (C) 2026 jmbermejias
+Copyright (C) 2026 Jose Manuel Bernabeu Mejias
+Calle Medico Rafael Navarro 2 2C
+Novelda 03660 Alicante, Espana
 
 Antivinux se distribuye bajo los terminos de la Licencia Publica General
 de GNU, version 3 (GPL-3.0).

@@ -10,7 +10,15 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gtk  # noqa: E402
 
-from ... import __version__, __author__, __homepage__, __license__  # noqa: E402
+from ... import (  # noqa: E402
+    __version__,
+    __author__,
+    __address__,
+    __city__,
+    __copyright__,
+    __homepage__,
+    __license__,
+)
 
 
 class AboutPage(Gtk.Box):
@@ -63,9 +71,12 @@ class AboutPage(Gtk.Box):
 
         add_row(grid, 0, "Version", __version__)
         add_row(grid, 1, "Autor", __author__)
-        add_row(grid, 2, "Licencia", __license__)
-        add_row(grid, 3, "Base de datos", "main.cvd, daily.cvd, bytecode.cvd")
-        add_row(grid, 4, "Actualizaciones", "freshclam")
+        add_row(grid, 2, "Direccion", __address__)
+        add_row(grid, 3, "Poblacion", __city__)
+        add_row(grid, 4, "Licencia", __license__)
+        add_row(grid, 5, "Copyright", __copyright__)
+        add_row(grid, 6, "Base de datos", "main.cvd, daily.cvd, bytecode.cvd")
+        add_row(grid, 7, "Actualizaciones", "freshclam")
         card.pack_start(grid, False, False, 0)
 
         href_label = Gtk.Label(label=__homepage__)
@@ -80,9 +91,11 @@ class AboutPage(Gtk.Box):
         card.pack_start(open_home, False, False, 0)
 
         license_text = Gtk.Label(
-            label="Antivinux es software libre distribuido bajo licencia GPL-3.0.\n"
+            label="{0}\n"
+            "Antivinux es software libre distribuido bajo los terminos de la "
+            "Licencia Publica General de GNU, version 3 (GPL-3.0).\n"
             "ClamAV y freshclam son proyectos independientes mantenidos por la "
-            "comunidad ClamAV."
+            "comunidad ClamAV.".format(__copyright__)
         )
         license_text.get_style_context().add_class("metric-label")
         license_text.set_margin_top(14)
