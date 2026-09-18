@@ -268,7 +268,10 @@ class ScanPage(Gtk.Box):
         if self._scanner is None:
             return False
         elapsed = time.time() - self._start_time
-        self.progress_bar.set_text("Analizando... {0:.0f}s".format(elapsed))
+        scanned = getattr(self._scanner, "last_scanned", 0) or 0
+        self.progress_bar.set_text(
+            "Analizando... {0:.0f}s | {1} archivos".format(elapsed, scanned)
+        )
         self.progress_bar.pulse()
         return True
 
@@ -289,6 +292,24 @@ class ScanPage(Gtk.Box):
         scanned = getattr(result, "scanned", 0) or 0
         dirs = getattr(result, "scanned_dirs", 0) or 0
 
+        if getattr(result, "cancelled", False):
+            self._pill_state("orange")
+            self.result_pill.set_text("CANCELADO")
+            if result.infected:
+                details = (
+                    "Se habian analizado {0} archivos y detectado {1} amenazas.".format(
+                        scanned, result.infected
+                    )
+                )
+                self.quarantine_selected_button.set_sensitive(True)
+            else:
+                details = (
+                    "Se habian analizado {0} archivos sin detectar amenazas.".format(scanned)
+                )
+            self.scan_status.set_text(
+                "Analisis cancelado tras {0:.1f}s. {1}".format(duration, details)
+            )
+            return
         if result.infected:
             self._pill_state("red")
             self.result_pill.set_text("{0} AMENAZAS".format(result.infected))

@@ -21,6 +21,7 @@ EVENT_CANCELLED = "cancelled"
 
 
 FOUND_RE = re.compile(r"^(.*?):\s+(\S+\s+)?FOUND\s*$", re.IGNORECASE)
+SCANNED_LINE_RE = re.compile(r":\s+(\S+\s+)?(OK|Empty file|FOUND)\s*$", re.IGNORECASE)
 
 SUMMARY_RE = re.compile(r"Infected files:\s*(\d+)", re.IGNORECASE)
 SCANNED_FILES_RE = re.compile(r"Scanned files:\s*(\d+)", re.IGNORECASE)
@@ -53,12 +54,12 @@ class Scanner:
         self._cancelled = False
         self.recursive = True
         self.follow_links = False
+        self.last_scanned = 0
         self._configure_defaults()
 
     def _configure_defaults(self):
         self.default_args = [
             "--no-banner",
-            "--infected",
         ]
 
     @classmethod
@@ -177,8 +178,11 @@ class Scanner:
             thread.start()
             threads.append(thread)
 
-        # Seguimiento de la salida mientras el proceso corre.
-        last_found_index = 0
+        # Seguimiento de la salida mientras el proceso corre. Las lineas de
+        # stdout ya procesadas se descartan para no acumular memoria en
+        # analisis muy grandes.
+        scanned_live = 0
+        processed = 0
         while True:
             if self._cancelled:
                 try:
@@ -189,12 +193,17 @@ class Scanner:
                 break
             if self._process.poll() is not None:
                 break
-            new_found = self._extract_findings(stdout_lines[last_found_index:])
-            for finding in new_found:
-                result.found.append(finding)
-                result.infected += 1
-                self.emit(EVENT_FOUND, file=finding["file"], signature=finding["signature"])
-            last_found_index = len(stdout_lines)
+            end = len(stdout_lines)
+            if end > processed:
+                batch = stdout_lines[processed:end]
+                scanned_live += self._count_scanned(batch)
+                for finding in self._extract_findings(batch):
+                    result.found.append(finding)
+                    result.infected += 1
+                    self.emit(EVENT_FOUND, file=finding["file"], signature=finding["signature"])
+                del stdout_lines[:end]
+                processed = 0
+                self.last_scanned = scanned_live
             time.sleep(0.15)
 
         try:
@@ -206,20 +215,22 @@ class Scanner:
         for thread in threads:
             thread.join(timeout=5)
 
-        new_found = self._extract_findings(stdout_lines[last_found_index:])
-        for finding in new_found:
+        batch = stdout_lines[processed:]
+        scanned_live += self._count_scanned(batch)
+        for finding in self._extract_findings(batch):
             result.found.append(finding)
             result.infected += 1
             self.emit(EVENT_FOUND, file=finding["file"], signature=finding["signature"])
+        self.last_scanned = scanned_live
 
         summary_blob = "\n".join(stdout_lines + stderr_lines)
         stats = self._summary_stats(summary_blob)
         if not result.infected and stats["infected"]:
             result.infected = stats["infected"]
-        if stats["scanned"] is not None:
+        if not result.cancelled and stats["scanned"] is not None:
             result.scanned = stats["scanned"]
         else:
-            result.scanned = self._count_scanned(stdout_lines)
+            result.scanned = scanned_live
         result.scanned_dirs = stats["scanned_dirs"]
         result.known_viruses = stats["known_viruses"]
         result.engine = stats["engine"]
@@ -266,7 +277,7 @@ class Scanner:
             line = line.strip()
             if not line:
                 continue
-            if " FOUND" in line or " OK" in line or line.endswith(":"):
+            if SCANNED_LINE_RE.search(line) or line.endswith(":"):
                 count += 1
         return count
 

@@ -121,10 +121,21 @@ class ScannerParsingTests(unittest.TestCase):
     def test_build_args_default(self):
         scanner = Scanner()
         args = scanner.build_args()
-        self.assertIn("--infected", args)
+        self.assertIn("--no-banner", args)
         self.assertIn("--recursive", args)
         self.assertNotIn("--stdout", args)
         self.assertNotIn("--bell", args)
+        self.assertNotIn("--infected", args)
+
+    def test_count_scanned(self):
+        scanner = Scanner()
+        lines = [
+            "/home/user/a.txt: OK\n",
+            "/home/user/b.bin: Empty file\n",
+            "/home/user/eicar.com: Eicar-Test-Signature FOUND\n",
+            "\n",
+        ]
+        self.assertEqual(scanner._count_scanned(lines), 3)
 
 
 class AppUpdateTests(unittest.TestCase):

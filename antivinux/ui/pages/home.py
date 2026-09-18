@@ -213,6 +213,26 @@ class HomePage(Gtk.Box):
 
         def update_ui():
             self.infected_value.set_text(str(len(self._quarantine_count())))
+            if getattr(result, "cancelled", False):
+                self._pill_state("orange")
+                self.status_pill.set_text("CANCELADO")
+                self.status_title.set_text("Analisis cancelado")
+                if result.infected:
+                    self.status_detail.set_text(
+                        "Se habian analizado {0} archivos y detectado {1} "
+                        "amenazas.".format(scanned, result.infected)
+                    )
+                else:
+                    self.status_detail.set_text(
+                        "Se habian analizado {0} archivos sin detectar "
+                        "amenazas.".format(scanned)
+                    )
+                self.last_scan_label.set_text(
+                    "Objetivo: {0} | Archivos: {1} | Cancelado tras {2:.1f}s".format(
+                        getattr(result, "target", ""), scanned, result.duration
+                    )
+                )
+                return
             if result.infected:
                 self._pill_state("red")
                 self.status_pill.set_text("{0} AMENAZAS".format(result.infected))
