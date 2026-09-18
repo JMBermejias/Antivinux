@@ -16,6 +16,35 @@ UPDATE_EVENT_DONE = "done"
 UPDATE_EVENT_ERROR = "error"
 
 
+def freshclam_is_running():
+    """Indica si hay otro proceso freshclam (servicio clamav-freshclam)."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-x", "freshclam"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=5,
+        )
+        if result.stdout.strip():
+            return True
+    except Exception:
+        pass
+    try:
+        for entry in os.listdir("/proc"):
+            if not entry.isdigit():
+                continue
+            try:
+                with open(os.path.join("/proc", entry, "comm"), "r") as fh:
+                    comm = fh.read().strip()
+            except (OSError, IOError):
+                continue
+            if comm == "freshclam":
+                return True
+    except Exception:
+        pass
+    return False
+
+
 class Updater:
     def __init__(self, callback=None):
         self.callback = callback
@@ -73,6 +102,28 @@ class Updater:
                 return False
             exec_cmd = [pkexec] + base_cmd
 
+        if freshclam_is_running():
+            age = check_database_age()
+            if age is not None and age <= 48:
+                text = (
+                    "El servicio clamav-freshclam ya mantiene las definiciones "
+                    "de virus al dia (ultima actualizacion hace {0:.0f} h). "
+                    "No es necesario actualizar manualmente.".format(age)
+                )
+                self._emit(UPDATE_EVENT_STATUS, text=text)
+                self._emit(UPDATE_EVENT_DONE, status="uptodate")
+                return True
+            self._emit(
+                UPDATE_EVENT_ERROR,
+                message="Hay otro proceso freshclam en marcha (el servicio "
+                "clamav-freshclam) que bloquea el registro de actualizacion "
+                "y la base de datos no esta al dia. Revisa "
+                "/var/log/clamav/freshclam.log o reinicia el servicio con:\n"
+                "sudo systemctl restart clamav-freshclam",
+            )
+            self._emit(UPDATE_EVENT_DONE, status="error")
+            return False
+
         self._emit(UPDATE_EVENT_STATUS, text="Iniciando actualizacion de definiciones...")
 
         try:
@@ -85,16 +136,18 @@ class Updater:
                 errors="replace",
                 bufsize=1,
             )
-        except (OSError, subprocess.SubprocessError) as exc:
+        except (OSError, subprocess.SubprocessError, TypeError) as exc:
             self._emit(UPDATE_EVENT_ERROR, message=str(exc))
             self._emit(UPDATE_EVENT_DONE, status="error")
             return False
 
         recent_lines = []
+        self._lines = []
 
         def drain():
             for line in iter(self._process.stdout.readline, ""):
                 recent_lines.append(line)
+                self._lines.append(line)
 
         thread = threading.Thread(target=drain)
         thread.daemon = True
@@ -139,10 +192,18 @@ class Updater:
             )
             self._emit(UPDATE_EVENT_DONE, status="ok")
         else:
-            self._emit(
-                UPDATE_EVENT_ERROR,
-                message="freshclam finalizo con codigo de error {}.".format(code),
-            )
+            if any("lock the log file" in line for line in self._lines):
+                self._emit(
+                    UPDATE_EVENT_ERROR,
+                    message="El registro de actualizacion esta bloqueado por otro "
+                    "proceso freshclam (servicio clamav-freshclam). Espera a que "
+                    "termine o revisa /var/log/clamav/freshclam.log.",
+                )
+            else:
+                self._emit(
+                    UPDATE_EVENT_ERROR,
+                    message="freshclam finalizo con codigo de error {}.".format(code),
+                )
             self._emit(UPDATE_EVENT_DONE, status="error")
         return ok or code == 1
 
@@ -164,6 +225,7 @@ def check_database_age():
 __all__ = [
     "Updater",
     "check_database_age",
+    "freshclam_is_running",
     "UPDATE_EVENT_STATUS",
     "UPDATE_EVENT_LINE",
     "UPDATE_EVENT_DONE",

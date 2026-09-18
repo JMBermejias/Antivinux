@@ -22,15 +22,20 @@ EVENT_CANCELLED = "cancelled"
 
 FOUND_RE = re.compile(r"^(.*?):\s+(\S+\s+)?FOUND\s*$", re.IGNORECASE)
 
-SUMMARY_RE = re.compile(
-    r"Infected files:\s*(\d+)", re.IGNORECASE
-)
+SUMMARY_RE = re.compile(r"Infected files:\s*(\d+)", re.IGNORECASE)
+SCANNED_FILES_RE = re.compile(r"Scanned files:\s*(\d+)", re.IGNORECASE)
+SCANNED_DIRS_RE = re.compile(r"Scanned directories:\s*(\d+)", re.IGNORECASE)
+KNOWN_VIRUSES_RE = re.compile(r"Known viruses:\s*(\S+)", re.IGNORECASE)
+ENGINE_RE = re.compile(r"Engine version:\s*(\S+)", re.IGNORECASE)
 
 
 class ScanResult:
     def __init__(self):
         self.infected = 0
         self.scanned = 0
+        self.scanned_dirs = 0
+        self.known_viruses = None
+        self.engine = None
         self.clean = True
         self.found = []
         self.error = None
@@ -93,7 +98,16 @@ class Scanner:
         self._cancelled = False
         self.emit(EVENT_START, target=target)
 
-        cmd = [which("clamscan")] + self.build_args() + [target]
+        clamscan = which("clamscan")
+        if not clamscan:
+            result.error = (
+                "clamscan no esta instalado. Instala el paquete clamav."
+            )
+            self.emit(EVENT_ERROR, message=result.error)
+            self.emit(EVENT_DONE, result=result)
+            return result
+
+        cmd = [clamscan] + self.build_args() + [target]
 
         try:
             self._process = subprocess.Popen(
@@ -105,7 +119,7 @@ class Scanner:
                 errors="replace",
                 bufsize=1,
             )
-        except (OSError, subprocess.SubprocessError) as exc:
+        except (OSError, subprocess.SubprocessError, TypeError) as exc:
             result.error = str(exc)
             self.emit(EVENT_ERROR, message=result.error)
             self.emit(EVENT_DONE, result=result)
@@ -164,14 +178,18 @@ class Scanner:
             self.emit(EVENT_FOUND, file=finding["file"], signature=finding["signature"])
 
         summary_blob = "\n".join(stdout_lines + stderr_lines)
-        match = SUMMARY_RE.search(summary_blob)
-        if not result.infected and match:
-            result.infected = int(match.group(1))
+        stats = self._summary_stats(summary_blob)
+        if not result.infected and stats["infected"]:
+            result.infected = stats["infected"]
+        if stats["scanned"] is not None:
+            result.scanned = stats["scanned"]
+        else:
+            result.scanned = self._count_scanned(stdout_lines)
+        result.scanned_dirs = stats["scanned_dirs"]
+        result.known_viruses = stats["known_viruses"]
+        result.engine = stats["engine"]
 
-        result.scanned = self._count_scanned(stdout_lines)
         result.clean = result.infected == 0
-        if result.error is None and not result.clean:
-            pass
         for line in stderr_lines:
             if "ERROR" in line or "error" in line:
                 result.error = line.strip()
@@ -181,6 +199,31 @@ class Scanner:
         result.duration = time.time() - start
         self.emit(EVENT_DONE, result=result)
         return result
+
+    @staticmethod
+    def _summary_stats(blob):
+        stats = {
+            "infected": 0,
+            "scanned": None,
+            "scanned_dirs": 0,
+            "known_viruses": None,
+            "engine": None,
+        }
+        for key, regex in (
+            ("infected", SUMMARY_RE),
+            ("scanned", SCANNED_FILES_RE),
+            ("scanned_dirs", SCANNED_DIRS_RE),
+            ("known_viruses", KNOWN_VIRUSES_RE),
+            ("engine", ENGINE_RE),
+        ):
+            match = regex.search(blob)
+            if match:
+                value = match.group(1).strip()
+                if key in ("infected", "scanned", "scanned_dirs"):
+                    stats[key] = int(value)
+                else:
+                    stats[key] = value
+        return stats
 
     def _count_scanned(self, lines):
         count = 0

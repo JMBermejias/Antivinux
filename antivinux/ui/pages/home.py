@@ -170,6 +170,16 @@ class HomePage(Gtk.Box):
         self._begin_scan("/")
 
     def _begin_scan(self, target):
+        status = check_database_status()
+        if not status["files"]:
+            self._pill_state("orange")
+            self.status_pill.set_text("SIN DEFINICIONES")
+            self.status_title.set_text("No se puede analizar")
+            self.status_detail.set_text(
+                "Faltan las definiciones de virus de ClamAV. Actualiza la base "
+                "de datos desde la pestana de actualizaciones antes de analizar."
+            )
+            return
         self._pill_state("orange")
         self.status_pill.set_text("EN CURSO")
         self.status_title.set_text("Analizando...")
@@ -197,6 +207,10 @@ class HomePage(Gtk.Box):
         thread.start()
 
     def _finish_scan(self, result, found):
+        scanned = getattr(result, "scanned", 0) or 0
+        dirs = getattr(result, "scanned_dirs", 0) or 0
+        message = getattr(result, "error", None)
+
         def update_ui():
             self.infected_value.set_text(str(len(self._quarantine_count())))
             if result.infected:
@@ -204,19 +218,34 @@ class HomePage(Gtk.Box):
                 self.status_pill.set_text("{0} AMENAZAS".format(result.infected))
                 self.status_title.set_text("Amenazas detectadas")
                 self.status_detail.set_text(
-                    "Se detectaron {0} archivos infectados. Revisa la pestana "
-                    "Cuarentena para gestionarlos.".format(result.infected)
+                    "Se detectaron {0} archivos infectados de {1} analizados. "
+                    "Revisa la pestana Cuarentena para gestionarlos.".format(
+                        result.infected, scanned
+                    )
                 )
+            elif not scanned:
+                self._pill_state("orange")
+                self.status_pill.set_text("ATENCION")
+                self.status_title.set_text("Verificacion incompleta")
+                if message:
+                    self.status_detail.set_text(message)
+                else:
+                    self.status_detail.set_text(
+                        "El analisis no examino ningun archivo. Comprueba que "
+                        "ClamAV y sus definiciones esten instalados y vuelve a "
+                        "intentarlo."
+                    )
             else:
                 self._pill_state("green")
                 self.status_pill.set_text("PROTEGIDO")
                 self.status_title.set_text("Sistema limpio")
                 self.status_detail.set_text(
-                    "No se encontraron amenazas en el objetivo analizado."
+                    "Se analizaron {0} archivos y {1} carpetas sin encontrar "
+                    "amenazas.".format(scanned, dirs)
                 )
             self.last_scan_label.set_text(
-                "Objetivo: {0} | Amenazas: {1} | Duracion: {2:.1f}s".format(
-                    getattr(result, "target", ""), result.infected, result.duration
+                "Objetivo: {0} | Archivos: {1} | Amenazas: {2} | Duracion: {3:.1f}s".format(
+                    getattr(result, "target", ""), scanned, result.infected, result.duration
                 )
             )
 

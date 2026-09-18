@@ -11,6 +11,7 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
+from ...backend import check_database_status  # noqa: E402
 from ...backend.clamav import Scanner, EVENT_START, EVENT_PROGRESS, EVENT_FOUND, EVENT_ERROR, EVENT_DONE  # noqa: E402
 from ...backend.quarantine import QuarantineManager  # noqa: E402
 from ...config import Config  # noqa: E402
@@ -206,6 +207,15 @@ class ScanPage(Gtk.Box):
         if not target or not os.path.exists(target):
             self.scan_status.set_text("La ruta seleccionada no existe.")
             return
+        db_status = check_database_status()
+        if not db_status["files"]:
+            self._pill_state("orange")
+            self.result_pill.set_text("SIN DEFINICIONES")
+            self.scan_status.set_text(
+                "No hay definiciones de virus de ClamAV. Actualiza la base de "
+                "datos en la pestana de actualizaciones antes de analizar."
+            )
+            return
         self._config["last_scan_path"] = target
         self._found_files = []
         self.store.clear()
@@ -276,20 +286,37 @@ class ScanPage(Gtk.Box):
         self.progress_bar.set_text("")
 
         duration = getattr(result, "duration", 0.0)
+        scanned = getattr(result, "scanned", 0) or 0
+        dirs = getattr(result, "scanned_dirs", 0) or 0
+
         if result.infected:
             self._pill_state("red")
             self.result_pill.set_text("{0} AMENAZAS".format(result.infected))
             self.scan_status.set_text(
-                "Analisis completado en {0:.1f}s: {1} archivos infectados.".format(
-                    duration, result.infected
-                )
+                "Analisis en {0:.1f}s: {1} archivos infectados de {2} analizados "
+                "({3} carpetas).".format(duration, result.infected, scanned, dirs)
             )
             self.quarantine_selected_button.set_sensitive(True)
+        elif not scanned:
+            message = getattr(result, "error", None)
+            self._pill_state("orange")
+            self.result_pill.set_text("NO VERIFICADO")
+            if message:
+                self.scan_status.set_text(
+                    "No se pudo completar el analisis: {0}".format(message)
+                )
+            else:
+                self.scan_status.set_text(
+                    "El analisis termino sin examinar ningun archivo. "
+                    "Comprueba que ClamAV y sus definiciones esten instalados "
+                    "y vuelve a intentarlo."
+                )
         else:
             self._pill_state("green")
             self.result_pill.set_text("SIN AMENAZAS")
             self.scan_status.set_text(
-                "Analisis completado en {0:.1f}s. No se encontraron amenazas.".format(duration)
+                "Analisis en {0:.1f}s: {1} archivos y {2} carpetas analizados, "
+                "sin amenazas.".format(duration, scanned, dirs)
             )
 
     def _on_quarantine_selected(self, button):

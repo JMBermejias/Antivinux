@@ -11,7 +11,13 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GLib, Gtk  # noqa: E402
 
 from ...backend import check_database_status, parse_cvd_header  # noqa: E402
-from ...backend.update import Updater, UPDATE_EVENT_STATUS, UPDATE_EVENT_LINE, UPDATE_EVENT_DONE  # noqa: E402
+from ...backend.update import (  # noqa: E402
+    Updater,
+    UPDATE_EVENT_STATUS,
+    UPDATE_EVENT_LINE,
+    UPDATE_EVENT_DONE,
+    UPDATE_EVENT_ERROR,
+)
 
 
 class UpdatePage(Gtk.Box):
@@ -167,6 +173,12 @@ class UpdatePage(Gtk.Box):
                     Gdk.threads_add_idle(
                         GLib.PRIORITY_DEFAULT, lambda l=line: self._append_log(l.rstrip("\n"))
                     )
+            elif event == UPDATE_EVENT_ERROR:
+                message = data.get("message", "")
+                Gdk.threads_add_idle(
+                    GLib.PRIORITY_DEFAULT,
+                    lambda m=message: self._append_log("ERROR: " + m),
+                )
             elif event == UPDATE_EVENT_DONE:
                 Gdk.threads_add_idle(
                     GLib.PRIORITY_DEFAULT, lambda: self._finish(data.get("status"))

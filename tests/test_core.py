@@ -95,6 +95,29 @@ class ScannerParsingTests(unittest.TestCase):
         self.assertEqual(findings[0]["signature"], "Eicar-Test-Signature")
         self.assertEqual(findings[1]["signature"], "Unix.Trojan.Agent-123")
 
+    def test_summary_stats(self):
+        blob = (
+            "----------- SCAN SUMMARY -----------\n"
+            "Known viruses: 8916621\n"
+            "Engine version: 0.103.11\n"
+            "Scanned directories: 12\n"
+            "Scanned files: 345\n"
+            "Infected files: 1\n"
+            "Total scanned: 12.4 MB\n"
+        )
+        stats = Scanner._summary_stats(blob)
+        self.assertEqual(stats["infected"], 1)
+        self.assertEqual(stats["scanned"], 345)
+        self.assertEqual(stats["scanned_dirs"], 12)
+        self.assertEqual(stats["known_viruses"], "8916621")
+        self.assertEqual(stats["engine"], "0.103.11")
+
+    def test_summary_empty_blob(self):
+        stats = Scanner._summary_stats("")
+        self.assertEqual(stats["infected"], 0)
+        self.assertIsNone(stats["scanned"])
+        self.assertEqual(stats["scanned_dirs"], 0)
+
 
 class AppUpdateTests(unittest.TestCase):
     def test_parse_version(self):

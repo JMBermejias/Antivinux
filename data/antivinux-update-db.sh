@@ -23,6 +23,14 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+if pgrep -x freshclam >/dev/null 2>&1; then
+    echo "==> El servicio clamav-freshclam esta en marcha y gestiona las"
+    echo "    actualizaciones automaticamente."
+    echo "    Estado:   sudo systemctl status clamav-freshclam"
+    echo "    Registro: /var/log/clamav/freshclam.log"
+    exit 0
+fi
+
 echo "==> Actualizando definiciones de virus con freshclam..."
 echo "==> Registro: ${LOG_FILE}"
 
