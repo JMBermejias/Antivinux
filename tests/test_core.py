@@ -118,6 +118,14 @@ class ScannerParsingTests(unittest.TestCase):
         self.assertIsNone(stats["scanned"])
         self.assertEqual(stats["scanned_dirs"], 0)
 
+    def test_build_args_default(self):
+        scanner = Scanner()
+        args = scanner.build_args()
+        self.assertIn("--infected", args)
+        self.assertIn("--recursive", args)
+        self.assertNotIn("--stdout", args)
+        self.assertNotIn("--bell", args)
+
 
 class AppUpdateTests(unittest.TestCase):
     def test_parse_version(self):

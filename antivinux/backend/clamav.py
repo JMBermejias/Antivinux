@@ -45,6 +45,8 @@ class ScanResult:
 
 
 class Scanner:
+    _available_cache = None
+
     def __init__(self, callback=None):
         self.callback = callback
         self._process = None
@@ -57,9 +59,39 @@ class Scanner:
         self.default_args = [
             "--no-banner",
             "--infected",
-            "--stdout",
-            "--bell",
         ]
+
+    @classmethod
+    def _load_available_options(cls):
+        """Devuelve los --opciones que soporta el clamscan instalado.
+
+        Algunas versiones de clamscan (p. ej. las de ClamAV 1.x en Zorin)
+        rechazan opciones antiguas como --stdout con 'Unknown option passed',
+        abortando el analisis antes de leer nada. Se consulta --help y se
+        guarda el resultado en cache.
+        """
+        if cls._available_cache is not None:
+            return cls._available_cache
+        available = None
+        clamscan = which("clamscan")
+        if clamscan:
+            try:
+                result = subprocess.run(
+                    [clamscan, "--help"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    timeout=10,
+                )
+                available = set(
+                    re.findall(r"--[a-z][a-z0-9-]*", result.stdout or "")
+                )
+            except Exception:
+                available = None
+        cls._available_cache = available
+        return available
 
     def build_args(self):
         args = list(self.default_args)
@@ -67,6 +99,9 @@ class Scanner:
             args.append("--recursive")
         if self.follow_links:
             args.append("--follow-links")
+        supported = self._load_available_options()
+        if supported is not None:
+            args = [arg for arg in args if arg in supported]
         return args
 
 
