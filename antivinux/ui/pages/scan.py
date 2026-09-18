@@ -9,7 +9,7 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 
-from gi.repository import Gdk, GLib, Gtk  # noqa: E402
+from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 from ...backend.clamav import Scanner, EVENT_START, EVENT_PROGRESS, EVENT_FOUND, EVENT_ERROR, EVENT_DONE  # noqa: E402
 from ...backend.quarantine import QuarantineManager  # noqa: E402
@@ -59,9 +59,18 @@ class ScanPage(Gtk.Box):
         self.target_entry.set_width_chars(48)
         row.pack_start(self.target_entry, True, True, 0)
 
-        browse = Gtk.Button(label="Examinar")
-        browse.connect("clicked", self._on_browse)
-        row.pack_start(browse, False, False, 0)
+        self.browse_button = Gtk.MenuButton(label="Examinar")
+        menu_model = Gio.Menu()
+        menu_model.append("Carpeta...", "scan.browse-folder")
+        menu_model.append("Archivo...", "scan.browse-file")
+        self.browse_button.set_menu_model(menu_model)
+        browse_group = Gio.SimpleActionGroup()
+        for kind in ("browse-folder", "browse-file"):
+            action = Gio.SimpleAction.new(kind, None)
+            action.connect("activate", self._on_browse_action, kind)
+            browse_group.add_action(action)
+        self.insert_action_group("scan", browse_group)
+        row.pack_start(self.browse_button, False, False, 0)
 
         self.scan_button = Gtk.Button(label="Analizar ahora")
         self.scan_button.get_style_context().add_class("suggested-action")
@@ -173,10 +182,16 @@ class ScanPage(Gtk.Box):
         self.result_pill.get_style_context().remove_class("orange")
         self.result_pill.get_style_context().add_class(state)
 
-    def _on_browse(self, button):
+    def _on_browse_action(self, action, param, kind):
+        select_folder = kind == "browse-folder"
         dialog = Gtk.FileChooserDialog(
-            title="Selecciona un archivo o carpeta",
-            action=Gtk.FileChooserAction.SELECT_FOLDER,
+            title="Selecciona una carpeta" if select_folder else "Selecciona un archivo",
+            action=(
+                Gtk.FileChooserAction.SELECT_FOLDER
+                if select_folder
+                else Gtk.FileChooserAction.OPEN
+            ),
+            transient_for=self.get_toplevel(),
         )
         dialog.add_buttons(
             "Cancelar", Gtk.ResponseType.CANCEL,
@@ -210,16 +225,17 @@ class ScanPage(Gtk.Box):
                 sig = data.get("signature", "FOUND")
                 self._found_files.append({"file": f, "signature": sig})
                 Gdk.threads_add_idle(
-                    GLib.PRIORITY_DEFAULT,
-                    lambda: self.store.append([f, sig, "INFECTADO"]),
+                    GLib.PRIORITY_DEFAULT, self._append_found_row, f, sig
                 )
             elif event == EVENT_ERROR:
+                message = str(data.get("message", ""))
                 Gdk.threads_add_idle(
-                    GLib.PRIORITY_DEFAULT,
-                    lambda: self.scan_status.set_text(str(data.get("message", ""))),
+                    GLib.PRIORITY_DEFAULT, self._set_status, message
                 )
             elif event == EVENT_DONE:
-                Gdk.threads_add_idle(GLib.PRIORITY_DEFAULT, lambda: self._finish(data.get("result")))
+                Gdk.threads_add_idle(
+                    GLib.PRIORITY_DEFAULT, self._finish, data.get("result")
+                )
 
         self._scanner.recursive = self.recursive_check.get_active()
         self._scanner.follow_links = self.follow_links_check.get_active()
@@ -229,6 +245,14 @@ class ScanPage(Gtk.Box):
         )
         thread.start()
         GLib.timeout_add(200, self._tick)
+
+    def _append_found_row(self, f, sig):
+        self.store.append([f, sig, "INFECTADO"])
+        return False
+
+    def _set_status(self, message):
+        self.scan_status.set_text(message)
+        return False
 
     def _tick(self):
         if self._scanner is None:
@@ -334,4 +358,7 @@ class ScanPage(Gtk.Box):
         dialog.destroy()
 
     def on_show_page(self):
-        self.target_entry.set_text(self._config["last_scan_path"] or os.path.expanduser("~"))
+        if not self.target_entry.get_text().strip():
+            self.target_entry.set_text(
+                self._config["last_scan_path"] or os.path.expanduser("~")
+            )
