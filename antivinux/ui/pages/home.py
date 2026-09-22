@@ -167,9 +167,9 @@ class HomePage(Gtk.Box):
         self._begin_scan(os.path.expanduser("~"))
 
     def _on_full_scan(self, button):
-        self._begin_scan("/")
+        self._begin_scan("/", use_root=True)
 
-    def _begin_scan(self, target):
+    def _begin_scan(self, target, use_root=False):
         status = check_database_status()
         if not status["files"]:
             self._pill_state("orange")
@@ -183,8 +183,15 @@ class HomePage(Gtk.Box):
         self._pill_state("orange")
         self.status_pill.set_text("EN CURSO")
         self.status_title.set_text("Analizando...")
-        self.status_detail.set_text("Objetivo: {0}".format(target))
+        if use_root and target == "/":
+            self.status_detail.set_text(
+                "Objetivo: {0} (se pedira tu contrasena para escribir en "
+                "directorios del sistema)".format(target)
+            )
+        else:
+            self.status_detail.set_text("Objetivo: {0}".format(target))
         self._scanning = Scanner()
+        self._scanning.use_root = use_root
         found = []
 
         def on_event(event, data):

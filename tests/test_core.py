@@ -137,6 +137,32 @@ class ScannerParsingTests(unittest.TestCase):
         ]
         self.assertEqual(scanner._count_scanned(lines), 3)
 
+    def test_friendly_unreadable_error(self):
+        class FakeResult:
+            pass
+
+        r = FakeResult()
+        r.cancelled = False
+        r.scanned = 0
+        r.error = None
+        r.exit_code = 0
+        self.assertIsNotNone(Scanner._friendly_unreadable_error(r))
+
+        r.scanned = 5
+        self.assertIsNone(Scanner._friendly_unreadable_error(r))
+
+        r.scanned = 0
+        r.exit_code = 1
+        self.assertIsNone(Scanner._friendly_unreadable_error(r))
+
+        r.exit_code = 0
+        r.cancelled = True
+        self.assertIsNone(Scanner._friendly_unreadable_error(r))
+
+        r.cancelled = False
+        r.error = "Otro error"
+        self.assertIsNone(Scanner._friendly_unreadable_error(r))
+
 
 class AppUpdateTests(unittest.TestCase):
     def test_parse_version(self):

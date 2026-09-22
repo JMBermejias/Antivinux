@@ -93,6 +93,10 @@ class ScanPage(Gtk.Box):
         options.pack_start(self.recursive_check, False, False, 0)
         self.follow_links_check = Gtk.CheckButton(label="Seguir enlaces")
         options.pack_start(self.follow_links_check, False, False, 0)
+        self.admin_check = Gtk.CheckButton(
+            label="Permisos de administrador (analizar todo el disco)"
+        )
+        options.pack_start(self.admin_check, False, False, 0)
         card.pack_start(options, False, False, 0)
 
         self.pack_start(card, False, False, 0)
@@ -224,7 +228,13 @@ class ScanPage(Gtk.Box):
         self.quarantine_selected_button.set_sensitive(False)
         self._pill_state("orange")
         self.result_pill.set_text("EN CURSO")
-        self.scan_status.set_text("Analizando {0}...".format(target))
+        if self.admin_check.get_active():
+            self.scan_status.set_text(
+                "Analizando {0} con permisos de administrador (se pedira tu "
+                "contrasena)...".format(target)
+            )
+        else:
+            self.scan_status.set_text("Analizando {0}...".format(target))
 
         self._scanner = Scanner()
         self._start_time = time.time()
@@ -249,6 +259,7 @@ class ScanPage(Gtk.Box):
 
         self._scanner.recursive = self.recursive_check.get_active()
         self._scanner.follow_links = self.follow_links_check.get_active()
+        self._scanner.use_root = self.admin_check.get_active()
 
         thread = threading.Thread(
             target=lambda: self._scanner.scan(target, on_event), daemon=True
@@ -320,11 +331,18 @@ class ScanPage(Gtk.Box):
             self.quarantine_selected_button.set_sensitive(True)
         elif not scanned:
             message = getattr(result, "error", None)
+            exit_code = getattr(result, "exit_code", None)
             self._pill_state("orange")
             self.result_pill.set_text("NO VERIFICADO")
             if message:
                 self.scan_status.set_text(
                     "No se pudo completar el analisis: {0}".format(message)
+                )
+            elif exit_code not in (None, 0):
+                self.scan_status.set_text(
+                    "El analisis termino sin examinar ningun archivo "
+                    "(codigo de salida {0}). Comprueba que ClamAV y sus "
+                    "definiciones esten instalados y vuelve a intentarlo.".format(exit_code)
                 )
             else:
                 self.scan_status.set_text(

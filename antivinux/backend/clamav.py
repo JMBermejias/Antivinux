@@ -4,6 +4,7 @@
 import os
 import re
 import shutil
+import signal
 import subprocess
 import threading
 import time
@@ -43,6 +44,9 @@ class ScanResult:
         self.duration = 0.0
         self.cancelled = False
         self.target = ""
+        self.exit_code = None
+        self.cmd = None
+        self.debug_tail = []
 
 
 class Scanner:
@@ -54,6 +58,7 @@ class Scanner:
         self._cancelled = False
         self.recursive = True
         self.follow_links = False
+        self.use_root = False
         self.last_scanned = 0
         self._configure_defaults()
 
@@ -114,9 +119,12 @@ class Scanner:
         self._cancelled = True
         if self._process:
             try:
-                self._process.terminate()
+                os.killpg(self._process.pid, signal.SIGTERM)
             except Exception:
-                pass
+                try:
+                    self._process.terminate()
+                except Exception:
+                    pass
 
     def scan(self, target, callback=None):
         if callback is not None:
@@ -144,6 +152,18 @@ class Scanner:
             return result
 
         cmd = [clamscan] + self.build_args() + [target]
+        if self.use_root:
+            pkexec = which("pkexec")
+            if not pkexec:
+                result.error = (
+                    "No se encontro pkexec para elevar privilegios. "
+                    "Instala el paquete policykit-1."
+                )
+                self.emit(EVENT_ERROR, message=result.error)
+                self.emit(EVENT_DONE, result=result)
+                return result
+            cmd = [pkexec] + cmd
+        result.cmd = cmd
 
         try:
             self._process = subprocess.Popen(
@@ -154,6 +174,7 @@ class Scanner:
                 encoding="utf-8",
                 errors="replace",
                 bufsize=1,
+                start_new_session=True,
             )
         except (OSError, subprocess.SubprocessError, TypeError) as exc:
             result.error = str(exc)
@@ -242,9 +263,35 @@ class Scanner:
                 self.emit(EVENT_ERROR, message=line.strip())
                 break
 
+        result.exit_code = self._process.returncode
+        result.debug_tail = (stdout_lines + stderr_lines)[-15:]
+
+        if result.error is None:
+            result.error = self._friendly_unreadable_error(result)
+            if result.error:
+                self.emit(EVENT_ERROR, message=result.error)
+
         result.duration = time.time() - start
         self.emit(EVENT_DONE, result=result)
         return result
+
+    @staticmethod
+    def _friendly_unreadable_error(result):
+        # clamscan finalizo "bien" pero no pudo leer nada: probablemente
+        # permisos/AppArmor al escanear fuera del alcance del usuario.
+        if (
+            not getattr(result, "cancelled", False)
+            and (getattr(result, "scanned", 0) or 0) == 0
+            and getattr(result, "error", None) is None
+            and getattr(result, "exit_code", None) == 0
+        ):
+            return (
+                "clamscan termino sin poder leer archivos del destino "
+                "(posible bloqueo por AppArmor o permisos). Activa la opcion "
+                "'Permisos de administrador' para analizar directorios del "
+                "sistema."
+            )
+        return None
 
     @staticmethod
     def _summary_stats(blob):
