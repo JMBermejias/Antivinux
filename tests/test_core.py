@@ -74,6 +74,13 @@ class QuarantineTests(unittest.TestCase):
         self.assertIsNotNone(entry)
         self.assertEqual(len(manager.list()), 1)
 
+        # Otra instancia del gestor (como hace la pagina de cuarentena) debe
+        # ver lo que la primera isolo, aunque se creo antes de cuarentenar.
+        other = QuarantineManager(manager.base_dir)
+        listing = other.list()
+        self.assertEqual(len(listing), 1)
+        self.assertEqual(listing[0]["original"], os.path.abspath(source))
+
         self.assertTrue(manager.restore(entry["id"]))
         self.assertEqual(len(manager.list()), 0)
 

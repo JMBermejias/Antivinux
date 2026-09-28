@@ -60,7 +60,12 @@ class QuarantineManager:
         return entry
 
     def list(self):
-        return list(self._entries)
+        # Releer siempre del disco: distintas ventanas/paginas crean su propia
+        # instancia del gestor al arrancar, de modo que lo guardado en memoria
+        # quedaria obsoleto frente a lo que otras instancias escribieron.
+        entries = self._load_index()
+        self._entries = entries
+        return list(entries)
 
     def restore(self, entry_id):
         entry = self.find(entry_id)
